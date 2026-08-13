@@ -154,11 +154,13 @@ async function fetchRewardTierCustomers() {
             { cursor }
             );
         const conn = data.customers;
+        console.log(`reward-tier sync page=${pages} edges=${conn.edges.length} hasNextPage=${conn.pageInfo.hasNextPage}`);
         for (const edge of conn.edges) customers.push(edge.node);
         hasNextPage = conn.pageInfo.hasNextPage;
         cursor = conn.pageInfo.endCursor;
         pages++;
     }
+    console.log(`reward-tier sync: total candidates fetched = ${customers.length}`);
     return customers
     .map((c) => {
         const spend = Math.round(parseFloat(c.amountSpent.amount) * 100) / 100;
