@@ -6,8 +6,7 @@ export const dynamic = "force-dynamic";
 
 const API_VERSION = "2025-10";
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-// Reward tiers are based on rolling trailing-12-month activity, not lifetime totals.
-const REWARDS_WINDOW_DAYS = 365;
+// Reward tiers mirror the store's real Shopify segments (Gold/Silver Collector Tier), which are based on lifetime order count + spend, not a rolling window.
 const GOLD_MIN_ORDERS = 30;
 const GOLD_MIN_SPEND = 7500;
 const SILVER_MIN_ORDERS = 15;
@@ -127,68 +126,47 @@ async function fetchUnfulfilledPaidOrders() {
     return orders;
 }
 
-// Pulls every paid order in the trailing `days` window with minimal fields
-// (no line items) so we can aggregate real rolling spend/order-count per
-// customer ourselves, instead of relying on Shopify's lifetime total_spent.
-async function fetchOrdersForRewardsWindow(days) {
-    const since = isoDaysAgo(days);
-    const orders = [];
+// Pulls Gold/Silver Collector Tier candidates by matching the same lifetime
+// order-count + spend thresholds as the store's real Shopify customer
+// segments (Gold Collector Tier / Silver Collector Tier) -- those segments
+// are defined on lifetime totals, not a rolling window, so this mirrors
+// that instead of aggregating our own trailing-window totals.
+async function fetchRewardTierCustomers() {
+    const customers = [];
     let cursor = null;
     let hasNextPage = true;
     let pages = 0;
-    const MAX_PAGES = 250; // up to 250*250 = 62,500 orders/year safety cap
-  while (hasNextPage && pages < MAX_PAGES) {
+    while (hasNextPage && pages < 20) {
         const data = await shopifyGraphQL(
-                `query($cursor: String) {
-                        orders(first: 250, after: $cursor, query: "created_at:>=${since} AND financial_status:paid", sortKey: CREATED_AT) {
-                                  pageInfo { hasNextPage endCursor }
-                                            edges {
-                                                        node {
-                                                                      totalPriceSet { shopMoney { amount } }
-                                                                                    customer { id displayName email }
-                                                                                                }
-                                                                                                          }
-                                                                                                                  }
-                                                                                                                        }`,
-          { cursor }
-              );
-        const conn = data.orders;
-        for (const edge of conn.edges) orders.push(edge.node);
+            `query($cursor: String) {
+            customers(first: 250, after: $cursor, query: "orders_count:>=${SILVER_MIN_ORDERS} AND total_spent:>=${SILVER_MIN_SPEND}") {
+            pageInfo { hasNextPage endCursor }
+            edges {
+            node {
+            displayName
+            email
+            numberOfOrders
+            amountSpent { amount }
+            }
+            }
+            }
+            }`,
+            { cursor }
+            );
+        const conn = data.customers;
+        for (const edge of conn.edges) customers.push(edge.node);
         hasNextPage = conn.pageInfo.hasNextPage;
         cursor = conn.pageInfo.endCursor;
         pages++;
-  }
-    return orders;
-}
-
-// Aggregates trailing-window orders per customer and assigns Gold/Silver
-// based on rolling 12-month order count + spend (never lifetime totals).
-function computeRewardTiers(orders) {
-    const byCustomer = new Map();
-    for (const o of orders) {
-          if (!o.customer) continue; // skip guest checkouts, nothing to attribute to
-      const id = o.customer.id;
-          const amount = parseFloat(o.totalPriceSet.shopMoney.amount);
-          const entry = byCustomer.get(id) || {
-                  name: o.customer.displayName,
-                  contact: o.customer.email || "",
-                  orders: 0,
-                  spend: 0,
-          };
-          entry.orders += 1;
-          entry.spend += amount;
-          byCustomer.set(id, entry);
     }
-    const result = [];
-    for (const c of byCustomer.values()) {
-          const spend = Math.round(c.spend * 100) / 100;
-          if (c.orders >= GOLD_MIN_ORDERS && spend >= GOLD_MIN_SPEND) {
-                  result.push({ name: c.name, tier: "Gold", orders: c.orders, spend, contact: c.contact });
-          } else if (c.orders >= SILVER_MIN_ORDERS && spend >= SILVER_MIN_SPEND) {
-                  result.push({ name: c.name, tier: "Silver", orders: c.orders, spend, contact: c.contact });
-          }
-    }
-    return result;
+    return customers
+    .map((c) => {
+        const spend = Math.round(parseFloat(c.amountSpent.amount) * 100) / 100;
+        const orders = parseInt(c.numberOfOrders, 10) || 0;
+        const tier = orders >= GOLD_MIN_ORDERS && spend >= GOLD_MIN_SPEND ? "Gold" : "Silver";
+        return { name: c.displayName, tier, orders, spend, contact: c.email || "" };
+    })
+    .sort((a, b) => b.spend - a.spend);
 }
 
 async function fetchRecentCollectors(limit) {
@@ -295,8 +273,7 @@ export async function GET(req) {
               }),
             ]);
 
-      const rewardsWindowOrders = await fetchOrdersForRewardsWindow(REWARDS_WINDOW_DAYS);
-        const rewardCustomers = computeRewardTiers(rewardsWindowOrders);
+      const rewardCustomers = await fetchRewardTierCustomers();
 
       const recentCustomers = await fetchRecentCollectors(15);
         const collectors = recentCustomers.map((c) => ({
