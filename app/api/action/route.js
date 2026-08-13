@@ -39,7 +39,6 @@ export async function POST(l){const h=e().get(n)?.value,g=await a(h);if(!g)retur
                                                                                                     case"deleteBuyingLead":{const{id:e}=y,a=await o("buying_leads")||[],n=a.filter(t=>t.id!==e);return await i("buying_leads",n),t.json({ok:!0,data:n})}
                                   
                                   case"editBuyingLeadPricing":{const{id:e,purchasePrice:a,pricedAt:n}=y,r=await o("buying_leads")||[],l=r.find(t=>t.id===e);if(!l)return t.json({error:"Lead not found"},{status:404});return void 0!==a&&(l.purchasePrice=Number(a)||0),void 0!==n&&(l.pricedAt=Number(n)||0),await i("buying_leads",r),t.json({ok:!0,data:r})}
-                                  )}
                                   case"addInventoryItem":{const{title:e,items:a,source:n}
                                                           =y;if(!e)return t.json({error:"Title is required"}
                                                                                  ,{status:400}
