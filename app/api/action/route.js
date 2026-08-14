@@ -16,7 +16,8 @@ export async function POST(l){const h=e().get(n)?.value,g=await a(h);if(!g)retur
                                                   ,{status:400}
                                                   )}
                               const{type:p}
-                              =y||{}
+                              =y||{}l.pricedAt=Number(n)||0),await i("buying_leads",r),t.json({ok:!0,data:r})}
+case"deleteCollection":{const{index:e}=y,a=await o("collections_profit")||[];if(!(e>=0)||e>=a.length)return t.json({error:"Not found"},{status:404});return a.splice(e,1),await i("collections_profit",a),t.json({ok:!0,data:a})}
                                 ;if(!p||!r(f,p))return t.json({error:`Role "${f}
                                 " is not permitted to perform "${p}
                                 "`}
