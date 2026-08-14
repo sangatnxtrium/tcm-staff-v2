@@ -17,7 +17,7 @@ export async function POST(l){const h=e().get(n)?.value,g=await a(h);if(!g)retur
                                                   )}
                               const{type:p}
                               =y||{};
-case"editBuyingLeadPricing":{const{id:e,purchasePrice:a,pricedAt:n}=y,r=await o("buying_leads")||[],l=r.find(t=>t.id===e);if(!l)return t.json({error:"Lead not found"},{status:404});return void 0!==a&&(l.purchasePrice=Number(a)||0),void 0!==n&&(l.pricedAt=Number(n)||0),await i("buying_leads",r),t.json({ok:!0,data:r})}case"deleteCollection":{const{index:e}=y,a=await o("collections_profit")||[];if(!(e>=0)||e>=a.length)return t.json({error:"Not found"},{status:404});return a.splice(e,1),await i("collections_profit",a),t.json({ok:!0,data:a})}
+
                                 ;if(!p||!r(f,p))return t.json({error:`Role "${f}
                                 " is not permitted to perform "${p}
                                 "`}
@@ -39,7 +39,7 @@ case"editBuyingLeadPricing":{const{id:e,purchasePrice:a,pricedAt:n}=y,r=await o(
                                                                                                                                                                              ),await i("buying_leads",s),t.json({ok:!0,data:s})}
                                                                                                     case"deleteBuyingLead":{const{id:e}=y,a=await o("buying_leads")||[],n=a.filter(t=>t.id!==e);return await i("buying_leads",n),t.json({ok:!0,data:n})}
                                   
-                                  case"editBuyingLeadPricing":{const{id:e,purchasePrice:a,pricedAt:n}=y,r=await o("buying_leads")||[],l=r.find(t=>t.id===e);if(!l)return t.json({error:"Lead not found"},{status:404});return void 0!==a&&(l.purchasePrice=Number(a)||0),void 0!==n&&(l.pricedAt=Number(n)||0),await i("buying_leads",r),t.json({ok:!0,data:r})}
+                                  case"editBuyingLeadPricing":{const{id:e,purchasePrice:a,pricedAt:n}=y,r=await o("buying_leads")||[],l=r.find(t=>t.id===e);if(!l)return t.json({error:"Lead not found"},{status:404});return void 0!==a&&(l.purchasePrice=Number(a)||0),void 0!==n&&(l.pricedAt=Number(n)||0),await i("buying_leads",r),t.json({ok:!0,data:r})}case"deleteCollection":{const{index:e}=y,a=await o("collections_profit")||[];if(!(e>=0)||e>=a.length)return t.json({error:"Not found"},{status:404});return a.splice(e,1),await i("collections_profit",a),t.json({ok:!0,data:a})}
                                   case"addInventoryItem":{const{title:e,items:a,source:n}
                                                           =y;if(!e)return t.json({error:"Title is required"}
                                                                                  ,{status:400}
