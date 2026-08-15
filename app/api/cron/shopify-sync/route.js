@@ -330,6 +330,7 @@ export async function GET(req) {
 
       const rewardsWindowOrders = await fetchOrdersForRewardsWindow(REWARDS_WINDOW_DAYS);
         const rewardCustomers = computeRewardTiers(rewardsWindowOrders);
+        console.log("[rewards-debug] ordersFetched=" + rewardsWindowOrders.length + " withCustomer=" + rewardsWindowOrders.filter(o => o.customer).length + " tiered=" + rewardCustomers.length + " sample=" + JSON.stringify(rewardCustomers.slice(0, 3)));
 
       const recentCustomers = await fetchRecentCollectors(15);
         const collectors = recentCustomers.map((c) => ({
