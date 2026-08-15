@@ -188,6 +188,10 @@ tr:last-child td{border-bottom:none}
 .doc-item:hover{background:#f0eefa}
 .doc-item.active{background:#ece8fb;color:var(--purple-dark);font-weight:600}
 .doc-item .cat{display:block;font-size:10.5px;color:var(--muted);font-weight:400}
+.doc-cat-group{margin-bottom:10px}
+.doc-cat-header{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);padding:10px 10px 4px}
+.doc-cat-group:first-child .doc-cat-header{padding-top:2px}
+.doc-cat-count{font-weight:400;text-transform:none;letter-spacing:0}
 .doc-pin{display:inline-block;margin-right:6px;cursor:pointer;opacity:.55;font-size:12px}
 .doc-pin:hover{opacity:1}
 .doc-pin.pinned{opacity:1}
@@ -239,6 +243,8 @@ tr:last-child td{border-bottom:none}
                          .docs-layout{flex-direction:column}
                          .doc-list{width:100%;display:flex;overflow-x:auto;gap:6px;padding-bottom:4px}
                          .doc-item{flex-shrink:0}
+                         .doc-cat-group{display:contents}
+                         .doc-cat-header{display:none}
                          .doc-view{padding:16px 18px}
                          .modal.wide{width:94vw;max-width:640px}
                          .cal-grid{display:flex;overflow-x:auto;gap:8px;padding-bottom:6px}
