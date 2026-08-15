@@ -133,7 +133,7 @@ export async function POST(l){const h=e().get(n)?.value,g=await a(h);if(!g)retur
                                                                                                                                                               )):t.json({error:"Doc not found"}
                                                                                                                                                                         ,{status:404}
                                                                                                                                                                         )}
-                                  case"toggleProjectMilestone":case"toggleProjectTask":{const{projectId:e,itemId:a}
+                                  case"deleteDoc":{const{id:e}=y,a=await o("docs")||[],n=a.filter(t=>t.id!==e);return await i("docs",n),t.json({ok:!0,data:n})}case"toggleProjectMilestone":case"toggleProjectTask":{const{projectId:e,itemId:a}
                                                                                         =y,n=await o("projects")||[],r=n.find(t=>t.id===e);if(!r)return t.json({error:"Project not found"}
                                                                                                                                                                ,{status:404}
                                                                                                                                                                );if(!s.includes(f)&&f!==r.owner)return t.json({error:"Only the project owner, Operations Manager, or Owner can update this"}
