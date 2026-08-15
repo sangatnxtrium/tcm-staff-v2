@@ -358,7 +358,7 @@ export async function GET(req) {
         await setModule("refunded_orders", refundedOrders);
         await setModule("reward_customers", rewardCustomers);
         await setModule("collectors", collectors);
-        await setModule("staff_sales", staffSales);
+        if (staffAvailable) await setModule("staff_sales", staffSales);
 
       return NextResponse.json({
               ok: true,
