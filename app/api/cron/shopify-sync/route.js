@@ -54,7 +54,7 @@ function isoDaysAgo(days) {
     return new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
 }
 
-async function fetchAllOrdersSince(days, includeStaff) {
+async function fetchAllOrdersSince(days) {
     const since = isoDaysAgo(days);
     const orders = [];
     let cursor = null;
@@ -76,7 +76,7 @@ async function fetchAllOrdersSince(days, includeStaff) {
                                                                                                                                               totalPriceSet { shopMoney { amount } }
                                                                                                                                                             subtotalPriceSet { shopMoney { amount } }
                                                                                                                                                                           customer { displayName }
-                                                                                                                                                                                        ${includeStaff ? "staffMember { name }" : ""}
+                                                                                                                                                                                        
                                                                                                                                                                                         lineItems(first: 15) {
                                                                                                                                                                                                         edges { node { originalTotalSet { shopMoney { amount } } product { productType } } }
                                                                                                                                                                                                                       }
@@ -220,23 +220,37 @@ function formatMemberSince(iso) {
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+// Real per-staff attribution via Shopify's ShopifyQL analytics API. Unlike
+// Order.staffMember (which requires a Plus/Advanced store), shopifyqlQuery
+// only requires the read_reports access scope and works on any plan — this
+// is the same data source that powers the "POS Staff Daily Sales" report in
+// Shopify Admin > Analytics.
+async function fetchStaffSales(days) {
+    const ql = "FROM sales SHOW orders, total_sales WHERE sales_channel = 'Point of Sale' AND staff_member_name IS NOT NULL GROUP BY staff_member_name SINCE -" + days + "d UNTIL today ORDER BY total_sales DESC";
+    const data = await shopifyGraphQL(
+          "query($q: String!) { shopifyqlQuery(query: $q) { parseErrors tableData { rows } } }",
+      { q: ql }
+        );
+    const result = data.shopifyqlQuery;
+    if (result.parseErrors && result.parseErrors.length) {
+          throw new Error("ShopifyQL parse error: " + JSON.stringify(result.parseErrors));
+    }
+    const rows = result.tableData?.rows || [];
+    return rows
+          .map((r) => ({
+                  name: (r.staff_member_name || "").trim() || "Unassigned",
+                  sales: Math.round(parseFloat(r.total_sales) * 100) / 100,
+                  transactions: parseInt(r.orders, 10) || 0,
+          }))
+          .sort((a, b) => b.sales - a.sales);
+}
 export async function GET(req) {
     if (!isAuthorized(req)) {
           return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
   try {
-        let staffAvailable = true;
-        let orders60d;
-        try {
-              orders60d = await fetchAllOrdersSince(60, true);
-        } catch (staffErr) {
-              // Store likely lacks the read_users scope / Plus-only StaffMember
-              // access required for staffMember attribution. Fall back to the
-              // same query without it so the rest of the sync still runs.
-              staffAvailable = false;
-              orders60d = await fetchAllOrdersSince(60, false);
-        }
+        const orders60d = await fetchAllOrdersSince(60);
         const now = Date.now();
         const cutoff30 = now - 30 * 86400000;
         const cutoff60 = now - 60 * 86400000;
@@ -246,7 +260,6 @@ export async function GET(req) {
         const salesByDay = DAY_LABELS.map((day) => ({ day, sales: 0, orders: 0 }));
         const categoryTotals = {};
         const refundedOrders = [];
-        const staffTotals = {};
 
       for (const o of orders60d) {
               const created = new Date(o.createdAt).getTime();
@@ -266,12 +279,6 @@ export async function GET(req) {
                         for (const li of o.lineItems.edges) {
                                     const cat = li.node.product?.productType?.trim() || "Uncategorized / other";
                                     categoryTotals[cat] = (categoryTotals[cat] || 0) + parseFloat(li.node.originalTotalSet.shopMoney.amount);
-                        }
-                        if (staffAvailable) {
-                                    const staffName = o.staffMember?.name?.trim() || "Unassigned";
-                                    const st = staffTotals[staffName] = staffTotals[staffName] || { name: staffName, sales: 0, transactions: 0 };
-                                    st.sales += total;
-                                    st.transactions += 1;
                         }
               }
               if (o.refunds && o.refunds.length) {
@@ -295,9 +302,13 @@ export async function GET(req) {
           .map(([category, sales]) => ({ category, sales: Math.round(sales * 100) / 100 }))
           .sort((a, b) => b.sales - a.sales);
 
-      const staffSales = Object.values(staffTotals)
-          .map((s) => ({ name: s.name, sales: Math.round(s.sales * 100) / 100, transactions: s.transactions }))
-          .sort((a, b) => b.sales - a.sales);
+      let staffAvailable = true;
+        let staffSales = [];
+        try {
+              staffSales = await fetchStaffSales(30);
+        } catch (staffErr) {
+              staffAvailable = false;
+        }
 
       const unfulfilled = await fetchUnfulfilledPaidOrders();
         const onlineOrders = unfulfilled.map((o) => ({
