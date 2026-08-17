@@ -54,6 +54,20 @@ const TCG_TYPE_CATEGORIES = [
 // row shows 30-day sales only (matched by productType), no in-stock count.
 const TCG_EXTRA_PRODUCT_TYPES = [{ label: "Pokemon", productType: "Pokemon" }];
 
+const TREND_MONTHS = (() => {
+  const now = new Date();
+  const keys = [];
+  for (let i = 2; i >= 0; i--) {
+    const dt = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    keys.push(dt.toISOString().slice(0, 7));
+  }
+  return keys;
+})();
+function monthLabel(key) {
+  const [y, m] = key.split("-").map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "short" });
+}
+
 function isAuthorized(req) {
       const cronSecret = process.env.CRON_SECRET;
       const authHeader = req.headers.get("authorization");
@@ -101,7 +115,7 @@ async function fetchAllOrdersSince(days) {
       let cursor = null;
       let hasNextPage = true;
       let pages = 0;
-      const MAX_PAGES = 60;
+      const MAX_PAGES = 120;
       while (hasNextPage && pages < MAX_PAGES) {
               const data = await shopifyGraphQL(
                         `query($cursor: String) {
@@ -307,13 +321,21 @@ async function fetchCollectionProductCounts(collectionIds) {
       return counts;
 }
 
+function buildMonthly(totalsMap, key) {
+  const perMonth = totalsMap[key] || {};
+  return TREND_MONTHS.map((mk) => ({
+    month: monthLabel(mk),
+    sales: Math.round((perMonth[mk] || 0) * 100) / 100,
+  }));
+}
+
 export async function GET(req) {
       if (!isAuthorized(req)) {
               return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
   try {
-          const orders60d = await fetchAllOrdersSince(60);
+          const orders60d = await fetchAllOrdersSince(100);
           const now = Date.now();
           const cutoff30 = now - 30 * 86400000;
           const cutoff60 = now - 60 * 86400000;
@@ -323,6 +345,8 @@ export async function GET(req) {
           const salesByDay = DAY_LABELS.map((day) => ({ day, sales: 0, orders: 0 }));
           const categoryTotals = {};
           const vendorTotals = {};
+          const monthlyCategoryTotals = {};
+          const monthlyVendorTotals = {};
           const refundedOrders = [];
 
         for (const o of orders60d) {
@@ -337,21 +361,33 @@ export async function GET(req) {
                               bucket.grossSales += subtotal;
                   }
                   if (inLast30) {
-                              const dayIdx = new Date(o.createdAt).getDay();
-                              salesByDay[dayIdx].sales += total;
-                              salesByDay[dayIdx].orders += 1;
-                              for (const li of o.lineItems.edges) {
-                                            const amount = parseFloat(li.node.originalTotalSet.shopMoney.amount);
-                                            const cat = li.node.product?.productType?.trim() || "Uncategorized / other";
-                                            categoryTotals[cat] = (categoryTotals[cat] || 0) + amount;
-                                            const vendor = (li.node.product?.vendor || "").trim().toUpperCase();
-                                            if (vendor) {
-                                                            const vendorCat = COMICS_VENDOR_CATEGORIES.find((c) => c.match(vendor));
-                                                            if (vendorCat) vendorTotals[vendorCat.label] = (vendorTotals[vendorCat.label] || 0) + amount;
-                                            }
-                              }
+                  const dayIdx = new Date(o.createdAt).getDay();
+                  salesByDay[dayIdx].sales += total;
+                  salesByDay[dayIdx].orders += 1;
+                }
+                const monthKey = o.createdAt.slice(0, 7);
+                const inTrendWindow = TREND_MONTHS.includes(monthKey);
+                if (inLast30 || inTrendWindow) {
+                  for (const li of o.lineItems.edges) {
+                    const amount = parseFloat(li.node.originalTotalSet.shopMoney.amount);
+                    const cat = li.node.product?.productType?.trim() || "Uncategorized / other";
+                    const vendor = (li.node.product?.vendor || "").trim().toUpperCase();
+                    const vendorCat = COMICS_VENDOR_CATEGORIES.find((c) => c.match(vendor));
+                    if (inLast30) {
+                      categoryTotals[cat] = (categoryTotals[cat] || 0) + amount;
+                      if (vendorCat) vendorTotals[vendorCat.label] = (vendorTotals[vendorCat.label] || 0) + amount;
+                    }
+                    if (inTrendWindow) {
+                      if (!monthlyCategoryTotals[cat]) monthlyCategoryTotals[cat] = {};
+                      monthlyCategoryTotals[cat][monthKey] = (monthlyCategoryTotals[cat][monthKey] || 0) + amount;
+                      if (vendorCat) {
+                        if (!monthlyVendorTotals[vendorCat.label]) monthlyVendorTotals[vendorCat.label] = {};
+                        monthlyVendorTotals[vendorCat.label][monthKey] = (monthlyVendorTotals[vendorCat.label][monthKey] || 0) + amount;
+                      }
+                    }
                   }
-                  if (o.refunds && o.refunds.length) {
+                }
+                if (o.refunds && o.refunds.length) {
                               for (const r of o.refunds) {
                                             const refundTime = new Date(r.createdAt).getTime();
                                             if (refundTime >= cutoff30) {
@@ -381,11 +417,13 @@ export async function GET(req) {
                               category: c.label,
                               inStock: collectionCounts[c.collectionId] ?? null,
                               sales30d: categoryTotals[c.productType] != null ? Math.round(categoryTotals[c.productType] * 100) / 100 : null,
+                              monthly: buildMonthly(monthlyCategoryTotals, c.productType),
                   })),
                   ...COMICS_VENDOR_CATEGORIES.map((c) => ({
                               category: c.label,
                               inStock: collectionCounts[c.collectionId] ?? null,
                               sales30d: vendorTotals[c.label] != null ? Math.round(vendorTotals[c.label] * 100) / 100 : null,
+                              monthly: buildMonthly(monthlyVendorTotals, c.label),
                   })),
                 ];
 
@@ -394,11 +432,13 @@ export async function GET(req) {
                               category: c.label,
                               inStock: collectionCounts[c.collectionId] ?? null,
                               sales30d: categoryTotals[c.productType] != null ? Math.round(categoryTotals[c.productType] * 100) / 100 : null,
+                              monthly: buildMonthly(monthlyCategoryTotals, c.productType),
                   })),
                   ...TCG_EXTRA_PRODUCT_TYPES.map((c) => ({
                               category: c.label,
                               inStock: null,
                               sales30d: categoryTotals[c.productType] != null ? Math.round(categoryTotals[c.productType] * 100) / 100 : null,
+                              monthly: buildMonthly(monthlyCategoryTotals, c.productType),
                   })),
                 ];
 
