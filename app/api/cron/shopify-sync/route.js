@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { setModule } from "../../../../lib/db";
+import { setModule, getModule } from "../../../../lib/db";
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
@@ -133,7 +133,7 @@ async function fetchAllOrdersSince(days) {
                                                                                                                                                                                 customer { displayName }
                                                                                                                                                                                 
                                                                                                                                                                                               lineItems(first: 15) {
-                                                                                                                                                                                                              edges { node { originalTotalSet { shopMoney { amount } } product { productType vendor } } }
+                                                                                                                                                                                                              edges { node { originalTotalSet { shopMoney { amount } } product { productType vendor tags } } }
                                                                                                                                                                                                                             }
                                                                                                                                                                                                                                           refunds { createdAt note totalRefundedSet { shopMoney { amount } } }
                                                                                                                                                                                                                                                       }
@@ -347,6 +347,7 @@ export async function GET(req) {
           const vendorTotals = {};
           const monthlyCategoryTotals = {};
           const monthlyVendorTotals = {};
+const lotTotals = {};
           const refundedOrders = [];
 
         for (const o of orders60d) {
@@ -373,6 +374,16 @@ export async function GET(req) {
                     const cat = li.node.product?.productType?.trim() || "Uncategorized / other";
                     const vendor = (li.node.product?.vendor || "").trim().toUpperCase();
                     const vendorCat = COMICS_VENDOR_CATEGORIES.find((c) => c.match(vendor));
+const liTags = li.node.product?.tags || [];
+for (const tg of liTags) {
+const lm = /^LOT-(\d+)$/i.exec((tg || "").trim());
+if (lm) {
+const lotId = Number(lm[1]);
+if (!lotTotals[lotId]) lotTotals[lotId] = { revenue: 0, count: 0 };
+lotTotals[lotId].revenue += amount;
+lotTotals[lotId].count += 1;
+}
+}
                     if (inLast30) {
                       categoryTotals[cat] = (categoryTotals[cat] || 0) + amount;
                       if (vendorCat) vendorTotals[vendorCat.label] = (vendorTotals[vendorCat.label] || 0) + amount;
@@ -404,7 +415,15 @@ export async function GET(req) {
                   }
         }
 
-        const salesByCategory = Object.entries(categoryTotals)
+        const lots = (await getModule("merchandise_lots")) || [];
+for (const lot of lots) {
+const lt = lotTotals[lot.id];
+lot.soldCount100d = lt ? lt.count : 0;
+lot.soldRevenue100d = lt ? Math.round(lt.revenue * 100) / 100 : 0;
+lot.profit100d = Math.round((lot.soldRevenue100d - (lot.purchasePrice || 0)) * 100) / 100;
+}
+
+const salesByCategory = Object.entries(categoryTotals)
             .map(([category, sales]) => ({ category, sales: Math.round(sales * 100) / 100 }))
             .sort((a, b) => b.sales - a.sales);
 
@@ -512,6 +531,7 @@ export async function GET(req) {
           await setModule("collectors", collectors);
           await setModule("comics_items", comicsItems);
           await setModule("tcg_items", tcgItems);
+await setModule("merchandise_lots", lots);
           if (staffAvailable) await setModule("staff_sales", staffSales);
 
         return NextResponse.json({
@@ -527,6 +547,7 @@ export async function GET(req) {
                               "comics_items",
                               "tcg_items",
                               "staff_sales",
+                              "merchandise_lots",
                             ],
                   staffAttributionAvailable: staffAvailable,
                   asOf: shopifySummary.asOf,
