@@ -9,6 +9,7 @@ import{NextResponse as t}
 function m(t){try{const e=new URL(t);return"https:"===e.protocol&&e.hostname.endsWith("blob.vercel-storage.com")}
               catch{return!1}
              }
+export const maxDuration = 300;
 export async function POST(l){const h=e().get(n)?.value,g=await a(h);if(!g)return t.json({error:"Not signed in"}
                                                                                          ,{status:401}
                                                                                          );const f=g.role;let y;try{y=await l.json()}
