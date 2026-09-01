@@ -4,7 +4,8 @@ import{NextResponse as t}
     from"../../../lib/auth";import{canPerformAction as r,GM_OR_ABOVE as s}
     from"../../../lib/rbac";import{getModule as o,setModule as i}
     from"../../../lib/db";import{BUY_STAGES as d,INV_STAGES as u,LOT_STAGES as L}
-    from"../../../lib/seedData";import{runSync as runSyncNow}from"../../../lib/shopifySync";import{runVinylEnrichBatch}from"../../../lib/vinylEnrich";function c(){return(new Date).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}
+    from"../../../lib/seedData";import{runSync as runSyncNow}from"../../../lib/shopifySync";import{runVinylEnrichBatch}from"../../../lib/vinylEnrich";
+import{runVinylGenreMetafieldBatch}from"../../../lib/vinylGenreMetafield";function c(){return(new Date).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}
                                                                                  )}
 function m(t){try{const e=new URL(t);return"https:"===e.protocol&&e.hostname.endsWith("blob.vercel-storage.com")}
               catch{return!1}
@@ -190,7 +191,8 @@ export async function POST(l){const h=e().get(n)?.value,g=await a(h);if(!g)retur
                                                                                                                                                                                )):t.json({error:"Automation not found"}
                                                                                                                                                                                          ,{status:404}
                                                                                                                                                                                          )}
-                                case"syncNow":{try{const result=await runSyncNow();return t.json({ok:!0,data:result})}catch(syncErr){return t.json({error:syncErr.message||"Sync failed"},{status:500})}}case"enrichVinylBatch":{try{const result=await runVinylEnrichBatch();return t.json({ok:!0,data:result})}catch(enrichErr){return t.json({error:enrichErr.message||"Enrichment failed"},{status:500})}}case"deleteSprint":{const{id:e}=y,a=await o("sprints")||[],n=a.filter(t=>t.id!==e);return await i("sprints",n),t.json({ok:!0,data:n})}default:return t.json({error:"Unknown action type"}
+                                case"syncNow":{try{const result=await runSyncNow();return t.json({ok:!0,data:result})}catch(syncErr){return t.json({error:syncErr.message||"Sync failed"},{status:500})}}case"syncVinylGenreMetafields":{try{const result=await runVinylGenreMetafieldBatch();return t.json({ok:!0,data:result})}catch(genreErr){return t.json({error:genreErr.message||"Genre metafield sync failed"},{status:500})}}
+case"enrichVinylBatch":{try{const result=await runVinylEnrichBatch();return t.json({ok:!0,data:result})}catch(enrichErr){return t.json({error:enrichErr.message||"Enrichment failed"},{status:500})}}case"deleteSprint":{const{id:e}=y,a=await o("sprints")||[],n=a.filter(t=>t.id!==e);return await i("sprints",n),t.json({ok:!0,data:n})}default:return t.json({error:"Unknown action type"}
                                                       ,{status:400}
                                                       )}
                                                                    }
