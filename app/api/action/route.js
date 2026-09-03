@@ -6,7 +6,8 @@ import{NextResponse as t}
     from"../../../lib/db";import{BUY_STAGES as d,INV_STAGES as u,LOT_STAGES as L}
     from"../../../lib/seedData";import{runSync as runSyncNow}from"../../../lib/shopifySync";import{runVinylEnrichBatch}from"../../../lib/vinylEnrich";
 import{runVinylGenreMetafieldBatch}from"../../../lib/vinylGenreMetafield";
-import{probeDiscogsCollection,runDiscogsImportBatch,exportDiscogsCollectionCsv}from"../../../lib/discogsImport";function c(){return(new Date).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}
+import{probeDiscogsCollection,runDiscogsImportBatch,exportDiscogsCollectionCsv}from"../../../lib/discogsImport";
+import{runProductPhotoAudit,runTagPhonePhotoCandidates}from"../../../lib/photoAudit";function c(){return(new Date).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}
                                                                                  )}
 function m(t){try{const e=new URL(t);return"https:"===e.protocol&&e.hostname.endsWith("blob.vercel-storage.com")}
               catch{return!1}
@@ -196,7 +197,7 @@ export async function POST(l){const h=e().get(n)?.value,g=await a(h);if(!g)retur
 case"discogsExportCsv":{try{const result=await exportDiscogsCollectionCsv();return t.json({ok:!0,data:result})}catch(exportErr){return t.json({error:exportErr.message||"Discogs export failed"},{status:500})}}
 case"discogsProbe":{try{const result=await probeDiscogsCollection();return t.json({ok:!0,data:result})}catch(probeErr){return t.json({error:probeErr.message||"Discogs probe failed"},{status:500})}}
 case"syncVinylGenreMetafields":{try{const result=await runVinylGenreMetafieldBatch();return t.json({ok:!0,data:result})}catch(genreErr){return t.json({error:genreErr.message||"Genre metafield sync failed"},{status:500})}}
-case"enrichVinylBatch":{try{const result=await runVinylEnrichBatch();return t.json({ok:!0,data:result})}catch(enrichErr){return t.json({error:enrichErr.message||"Enrichment failed"},{status:500})}}case"deleteSprint":{const{id:e}=y,a=await o("sprints")||[],n=a.filter(t=>t.id!==e);return await i("sprints",n),t.json({ok:!0,data:n})}default:return t.json({error:"Unknown action type"}
+case"enrichVinylBatch":{try{const result=await runVinylEnrichBatch();return t.json({ok:!0,data:result})}catch(enrichErr){return t.json({error:enrichErr.message||"Enrichment failed"},{status:500})}}case"scanProductPhotos":{try{const result=await runProductPhotoAudit();return t.json({ok:!0,data:result})}catch(scanErr){return t.json({error:scanErr.message||"Photo scan failed"},{status:500})}}case"tagPhonePhotoCandidates":{try{const result=await runTagPhonePhotoCandidates();return t.json({ok:!0,data:result})}catch(tagErr){return t.json({error:tagErr.message||"Tagging failed"},{status:500})}}case"deleteSprint":{const{id:e}=y,a=await o("sprints")||[],n=a.filter(t=>t.id!==e);return await i("sprints",n),t.json({ok:!0,data:n})}default:return t.json({error:"Unknown action type"}
                                                       ,{status:400}
                                                       )}
                                                                    }
