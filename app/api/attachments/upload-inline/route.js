@@ -45,6 +45,7 @@ export async function POST(req) {
       access: "public",
       addRandomSuffix: true,
       contentType: type,
+      token: process.env.NEWBLOB_READ_WRITE_TOKEN,
     });
     return NextResponse.json({ url: blob.url });
   } catch (err) {
