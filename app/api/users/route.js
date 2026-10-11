@@ -12,9 +12,7 @@ import{NextResponse as r}
                            ,{status:401}
                            )}
                                               }
-export async function GET(){const{errorResponse:t}
-                            =await m();if(t)return t;const e=await a();return r.json({data:e}
-                                                                                     )}
+export async function GET(){const dirSess=await n(t().get(s)?.value);if(!dirSess)return r.json({error:"Not signed in"},{status:401});const e=await a();if(f.includes(dirSess.role))return r.json({data:e});return r.json({data:e.map(u=>({name:u.name}))})}
 export async function POST(t){const{errorResponse:n}
                               =await m();if(n)return n;let s;try{s=await t.json()}
                               catch{return r.json({error:"Invalid request body"}
