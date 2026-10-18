@@ -174,7 +174,7 @@ tr:last-child td{border-bottom:none}
 
 .chat-section-header{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);padding:8px 10px 4px}
 .chat-unread-badge{background:var(--red);color:#fff;font-size:10.5px;font-weight:700;border-radius:10px;padding:1px 6px;flex-shrink:0;min-width:16px;text-align:center}
-.nav-badge{background:var(--red);color:#fff;font-size:10px;font-weight:700;border-radius:9px;padding:1px 6px;margin-left:auto}.chat-channel-actions{opacity:0;transition:opacity .1s;flex-shrink:0;display:flex;gap:6px;font-size:11px;padding-top:1px}
+.nav-badge{background:var(--red);color:#fff;font-size:10px;font-weight:700;border-radius:9px;padding:1px 6px;margin-left:auto;flex-shrink:0}.chat-channel-actions{opacity:0;transition:opacity .1s;flex-shrink:0;display:flex;gap:6px;font-size:11px;padding-top:1px}
 .chat-channel-item:hover .chat-channel-actions,.chat-channel-item:focus-within .chat-channel-actions{opacity:1}
 @media (hover:none){.chat-channel-actions,.chat-msg-actions{opacity:1}}
 .chat-channel-actions a{color:var(--muted);text-decoration:none;cursor:pointer}
@@ -205,6 +205,20 @@ tr:last-child td{border-bottom:none}
 .chat-msg-actions a{color:var(--muted);text-decoration:none;margin-right:8px;cursor:pointer}
 .chat-msg-actions a:hover{color:var(--purple-dark);text-decoration:underline}
 .chat-msg-body{font-size:13.5px;margin-top:3px;line-height:1.4}
+.chat-main .handoff{margin:10px 12px 0;border:1px solid #e4d7a8;background:#fffdf6;border-radius:12px;padding:10px 12px;flex-shrink:0}
+.handoff-top{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.handoff-kicker{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8a6a12;font-weight:700}
+.handoff-actions{display:flex;gap:6px;flex-wrap:wrap}
+.handoff-actions .btn{min-height:32px}
+.handoff-body{font-size:13.5px;margin-top:6px;line-height:1.4;white-space:pre-wrap}
+.handoff-meta{font-size:11.5px;color:var(--muted);margin-top:4px}
+.handoff-empty{font-size:13px;color:var(--muted);margin-top:6px}
+.handoff-history{margin-top:8px;border-top:1px dashed #e4d7a8;padding-top:8px;max-height:180px;overflow:auto}
+.handoff-past{padding:6px 0;border-bottom:1px solid #f0e6cc}
+.handoff-past:last-child{border-bottom:0}
+.chat-msg.system{justify-content:center;margin:8px 0 12px}
+.chat-msg.system .chat-msg-system{background:#1a1a1a;color:#f6e7b2;border:1px solid #d4af37;border-radius:999px;padding:7px 12px;font-size:12.5px;line-height:1.35;text-align:center;max-width:min(100%,520px)}
+.chat-msg.system .chat-msg-ts{color:#e4d7a4;margin-left:8px}
 .chat-msg-body code{background:#f2f1fa;border-radius:4px;padding:1px 5px;font-size:12.5px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 .mention{background:#ece8fb;color:var(--purple-dark);font-weight:600;border-radius:4px;padding:0 4px}
 .docs-layout{display:flex;gap:18px}
