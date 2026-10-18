@@ -1,8 +1,16 @@
 import "./globals.css";
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#1e1a2e",
+};
+
 export const metadata = {
   title: "TCM Staff",
   description: "The operating system for TCM's collectibles business",
+  applicationName: "TCM Staff",
   manifest: "/manifest.json",
   icons: {
     icon: [
