@@ -4,7 +4,10 @@ import {
   aggregateStaffKpis,
   buildKpiPayload,
   orderNet,
+  peopleFromShopifyqlWindows,
+  posNamesForLinking,
   shouldShowPersonalNumbers,
+  staffNameSalesQuery,
   stripPersonalSales,
   unmatchedPosNames,
   windowsFor,
@@ -163,6 +166,53 @@ test("an unlinked account gets no personal numbers even when the POS name matche
   const ownRow = (result.data.team || []).find((row) => row.email === "sang@tcmstaff.com" || row.name === "Sang Truong");
   assert.equal(ownRow, undefined);
   assert.deepEqual(result.data.unmatchedPosNames, ["Sang Truong", "Other Register"]);
+});
+
+test("linking names include Sales by Staff rows when the KPI snapshot has none", () => {
+  const staffSales = [
+    { name: "Justin Osborne", sales: 24039.99, transactions: 410 },
+    { name: "justin osborne", sales: 1, transactions: 1 },
+    { name: "Conner Joyce", sales: 18098.45, transactions: 287 },
+    { name: "Trevor Beack", sales: 16800.04, transactions: 290 },
+    { name: "Tom House", sales: 6007.42, transactions: 92 },
+    { name: "Sang Truong", sales: 3901.6, transactions: 87 },
+    { name: "James Hejl", sales: 997.75, transactions: 17 },
+    { name: "Unassigned", sales: 10, transactions: 1 },
+  ];
+  const names = posNamesForLinking({ staffSales, snapshot: { people: [] }, map: { entries: [{ posName: "Sang Truong", userEmail: "sang@tcmstaff.com" }] } });
+  assert.deepEqual(names, ["Justin Osborne", "Conner Joyce", "Trevor Beack", "Tom House", "Sang Truong", "James Hejl"]);
+  const result = buildKpiPayload({
+    role: "Owner",
+    email: "sang@tcmstaff.com",
+    name: "Sang Truong",
+    searchParams: new URLSearchParams("team=1"),
+    snapshot: { people: [], store: { month: { net: 1 } } },
+    map: { entries: [{ posName: "Sang Truong", userEmail: "sang@tcmstaff.com" }] },
+    targets: null,
+    staffSales,
+  });
+  assert.deepEqual(result.data.unmatchedPosNames, ["Justin Osborne", "Conner Joyce", "Trevor Beack", "Tom House", "James Hejl"]);
+  assert.equal(result.data.me.linked, true);
+});
+
+test("ShopifyQL staff-name query covers the inclusive window end", () => {
+  assert.equal(
+    staffNameSalesQuery("2026-10-01", "2026-10-28"),
+    "FROM sales SHOW orders, total_sales WHERE sales_channel = 'Point of Sale' AND staff_member_name IS NOT NULL GROUP BY staff_member_name SINCE 2026-10-01 UNTIL 2026-10-29 ORDER BY total_sales DESC"
+  );
+});
+
+test("ShopifyQL window rows become per-person KPI totals", () => {
+  const people = peopleFromShopifyqlWindows({
+    month: [{ name: "Justin Osborne", sales: 100, transactions: 2 }],
+    monthBase: [{ name: "Justin Osborne", sales: 40, transactions: 1 }],
+    quarter: [{ name: "justin osborne", sales: 100, transactions: 2 }, { name: "Sang Truong", sales: 20, transactions: 1 }],
+    quarterBase: [],
+  });
+  assert.equal(people.length, 2);
+  assert.equal(people.find((p) => p.posName === "Justin Osborne").month.net, 100);
+  assert.equal(people.find((p) => p.posName === "Justin Osborne").month.vsBaselinePct, 150);
+  assert.equal(people.find((p) => p.posName === "Sang Truong").quarter.net, 20);
 });
 
 test("bootstrap drops per-person modules for a floor role", () => {
