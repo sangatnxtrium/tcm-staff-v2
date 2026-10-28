@@ -4,6 +4,7 @@ import {
   aggregateStaffKpis,
   buildKpiPayload,
   orderNet,
+  shouldShowPersonalNumbers,
   stripPersonalSales,
   unmatchedPosNames,
   windowsFor,
@@ -137,6 +138,31 @@ test("two POS names for one person are summed", () => {
   });
   assert.equal(own.data.me.metrics.month.net, 25);
   assert.equal(own.data.me.metrics.month.orders, 2);
+});
+
+test("an unlinked account gets no personal numbers even when the POS name matches", () => {
+  const snapshot = aggregateStaffKpis([
+    { createdAt: "2026-10-10T18:00:00Z", total: 4321, refunded: 0, posName: "Sang Truong" },
+    { createdAt: "2026-10-11T18:00:00Z", total: 15, refunded: 0, posName: "Other Register" },
+  ], noon);
+  const result = buildKpiPayload({
+    role: "Owner",
+    email: "sang@tcmstaff.com",
+    name: "Sang Truong",
+    searchParams: new URLSearchParams("team=1"),
+    snapshot,
+    map: { entries: [] },
+    targets: null,
+  });
+  assert.equal(result.status, 200);
+  assert.equal(result.data.me.linked, false);
+  assert.equal(result.data.me.metrics, null);
+  assert.deepEqual(result.data.me.posNames, []);
+  assert.equal(shouldShowPersonalNumbers(result.data.me), false);
+  assert.equal(JSON.stringify(result.data.me).includes("4321"), false);
+  const ownRow = (result.data.team || []).find((row) => row.email === "sang@tcmstaff.com" || row.name === "Sang Truong");
+  assert.equal(ownRow, undefined);
+  assert.deepEqual(result.data.unmatchedPosNames, ["Sang Truong", "Other Register"]);
 });
 
 test("bootstrap drops per-person modules for a floor role", () => {

@@ -355,3 +355,26 @@ td.empty,th.empty{background:transparent;border:0;border-bottom:1px solid var(--
 @media (hover:none){
   .chat-channel-actions,.chat-msg-actions{opacity:1}
 }
+.my-kpi-grid{min-width:0}
+.kpi-team{min-width:0;max-width:100%}
+.kpi-team-scroll{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.kpi-team-scroll table{display:table;width:max-content;min-width:100%;margin:0}
+.kpi-team-cards{display:none}
+.kpi-person-card{border:1px solid var(--border);border-radius:10px;padding:12px;background:#fff;margin-bottom:10px}
+.kpi-person-card h4{margin:0 0 2px;font-size:14px}
+.kpi-person-card p{margin:0;color:var(--muted);font-size:12.5px}
+.kpi-person-card dl{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;margin:10px 0 0}
+.kpi-person-card dt{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.kpi-person-card dd{margin:2px 0 0;font-weight:700}
+@media (max-width:900px){
+  html,body{overflow-x:hidden;max-width:100%}
+  .app,.main,.content{max-width:100%;min-width:0}
+  .content{overflow-x:hidden;padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+  .kpi,.panel,.kpi-grid{min-width:0;max-width:100%}
+  .kpi .label,.kpi .delta,.kpi .value{overflow-wrap:anywhere}
+}
+@media (max-width:640px){
+  .my-kpi-grid{grid-template-columns:1fr}
+  .kpi-team-scroll{display:none}
+  .kpi-team-cards{display:block}
+}
