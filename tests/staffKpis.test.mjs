@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import {
   aggregateStaffKpis,
   buildKpiPayload,
+  clearStoredStaffMemberErrors,
   kpiRequestPath,
   orderNet,
   peopleFromShopifyqlWindows,
@@ -250,8 +251,8 @@ test("a stored access-denied message never leaves the KPI API", () => {
     assert.equal(blob.includes("Shopify GraphQL"), false, role);
     assert.equal(result.data.attribution.error, null, role);
     if (role === "Owner") {
-      assert.match(result.data.attribution.note, /POS staff names from Shopify reports/);
-      assert.equal(result.data.attribution.note.toLowerCase().includes("access denied"), false);
+      assert.equal(result.data.attribution.note, "Per-person totals come from Shopify's sales-by-staff report.");
+      assert.equal(result.data.attribution.note.includes("{"), false);
     } else {
       assert.equal(result.data.attribution.note, null, role);
     }
@@ -260,6 +261,36 @@ test("a stored access-denied message never leaves the KPI API", () => {
   assert.equal(summary.staffMemberError, null);
   assert.equal(summary.perPersonSource, "shopifyql_total_sales");
   assert.equal(JSON.stringify(summary).toLowerCase().includes("access denied"), false);
+});
+
+test("a previous sync's staffMemberError is cleared without another Shopify sync", async () => {
+  const access = 'Access denied for staffMember field. {"message":"Access denied for staffMember field","extensions":{"code":"ACCESS_DENIED"}}';
+  const store = {
+    staff_kpis: { people: [{ posName: "Justin Osborne" }], staffMemberError: access, perPersonSource: "shopifyql_total_sales" },
+    store_kpi_summary: { store: { month: { net: 1 } }, staffMemberError: access },
+  };
+  const writes = [];
+  const cleaned = await clearStoredStaffMemberErrors(
+    async (name) => store[name],
+    async (name, data) => {
+      writes.push(name);
+      store[name] = data;
+    }
+  );
+  assert.deepEqual(writes.sort(), ["staff_kpis", "store_kpi_summary"]);
+  assert.equal(cleaned.staff_kpis.staffMemberError, null);
+  assert.equal(cleaned.store_kpi_summary.staffMemberError, null);
+  assert.equal(cleaned.staff_kpis.people[0].posName, "Justin Osborne");
+  assert.equal(JSON.stringify(store).includes("ACCESS_DENIED"), false);
+  assert.equal(JSON.stringify(store).toLowerCase().includes("access denied"), false);
+  let wroteAgain = false;
+  await clearStoredStaffMemberErrors(
+    async (name) => store[name],
+    async () => {
+      wroteAgain = true;
+    }
+  );
+  assert.equal(wroteAgain, false);
 });
 
 test("floor KPI loads do not request the team view", () => {

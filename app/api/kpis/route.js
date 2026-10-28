@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { verifySession, SESSION_COOKIE } from "../../../lib/auth";
-import { getModule, listUsers } from "../../../lib/db";
-import { DEFAULT_TARGETS, buildKpiPayload, isOwnerOrOps } from "../../../lib/staffKpis";
+import { getModule, listUsers, setModule } from "../../../lib/db";
+import { DEFAULT_TARGETS, buildKpiPayload, clearStoredStaffMemberErrors, isOwnerOrOps } from "../../../lib/staffKpis";
 
 export async function GET(req) {
   const token = cookies().get(SESSION_COOKIE)?.value;
   const session = await verifySession(token);
   if (!session) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
 
-  const snapshot = await getModule("staff_kpis");
+  const cleaned = await clearStoredStaffMemberErrors(getModule, setModule);
+  const snapshot = cleaned.staff_kpis;
   const map = await getModule("staff_name_map");
   const storedTargets = await getModule("sales_targets");
   const targets = storedTargets || DEFAULT_TARGETS;
