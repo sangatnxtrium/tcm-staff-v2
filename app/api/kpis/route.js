@@ -14,6 +14,7 @@ export async function GET(req) {
   const storedTargets = await getModule("sales_targets");
   const targets = storedTargets || DEFAULT_TARGETS;
   const url = new URL(req.url);
+  const staffSales = isOwnerOrOps(session.role) ? await getModule("staff_sales") : null;
   const result = buildKpiPayload({
     role: session.role,
     email: session.email,
@@ -22,6 +23,7 @@ export async function GET(req) {
     snapshot,
     map,
     targets,
+    staffSales,
   });
   if (result.status !== 200) return NextResponse.json({ error: result.error }, { status: result.status });
   if (isOwnerOrOps(session.role) && url.searchParams.get("team") === "1") {
