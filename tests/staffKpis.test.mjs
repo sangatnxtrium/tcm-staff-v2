@@ -1,14 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   aggregateStaffKpis,
   buildKpiPayload,
+  kpiRequestPath,
   orderNet,
   peopleFromShopifyqlWindows,
   posNamesForLinking,
   shouldShowPersonalNumbers,
   staffNameSalesQuery,
   stripPersonalSales,
+  toStoreSummary,
   unmatchedPosNames,
   windowsFor,
 } from "../lib/staffKpis.js";
@@ -213,6 +216,88 @@ test("ShopifyQL window rows become per-person KPI totals", () => {
   assert.equal(people.find((p) => p.posName === "Justin Osborne").month.net, 100);
   assert.equal(people.find((p) => p.posName === "Justin Osborne").month.vsBaselinePct, 150);
   assert.equal(people.find((p) => p.posName === "Sang Truong").quarter.net, 20);
+});
+
+test("a stored access-denied message never leaves the KPI API", () => {
+  const accessDenied = "Access denied for staffMember field. Required access: `read_users` access scope. Shopify GraphQL error: ACCESS_DENIED";
+  const snapshot = {
+    asOf: noon.toISOString(),
+    windows: windowsFor(noon),
+    store: { month: { net: 10, orders: 1, aov: 10 }, quarter: { net: 10, orders: 1, aov: 10 } },
+    people: [{ posName: "Justin Osborne", month: { net: 5, orders: 1, aov: 5, baselineNet: 0, baselineOrders: 0, baselineAov: 0, vsBaselinePct: null }, quarter: { net: 5, orders: 1, aov: 5, baselineNet: 0, baselineOrders: 0, baselineAov: 0, vsBaselinePct: null } }],
+    staffMemberAvailable: false,
+    staffMemberError: accessDenied + " Shopify said: " + accessDenied,
+    perPersonSource: "shopifyql_total_sales",
+    definition: "Net sales is the order total after discounts.",
+  };
+  const map = { entries: [{ posName: "Justin Osborne", userEmail: "justin@tcmstaff.com" }] };
+  const roles = ["Inventory Manager", "Customer Experience Specialist", "Growth & Marketing", "Logistics Manager", "Customer Experience Manager", "Operations Manager", "Owner"];
+  for (const role of roles) {
+    const manager = role === "Owner" || role === "Operations Manager";
+    const result = buildKpiPayload({
+      role,
+      email: "justin@tcmstaff.com",
+      name: "Justin Osborne",
+      searchParams: new URLSearchParams(manager ? "team=1" : ""),
+      snapshot,
+      map,
+      targets: null,
+    });
+    assert.equal(result.status, 200, role);
+    const blob = JSON.stringify(result.data);
+    assert.equal(blob.toLowerCase().includes("access denied"), false, role);
+    assert.equal(blob.includes("read_users"), false, role);
+    assert.equal(blob.includes("Shopify GraphQL"), false, role);
+    assert.equal(result.data.attribution.error, null, role);
+    if (role === "Owner") {
+      assert.match(result.data.attribution.note, /POS staff names from Shopify reports/);
+      assert.equal(result.data.attribution.note.toLowerCase().includes("access denied"), false);
+    } else {
+      assert.equal(result.data.attribution.note, null, role);
+    }
+  }
+  const summary = toStoreSummary(snapshot);
+  assert.equal(summary.staffMemberError, null);
+  assert.equal(summary.perPersonSource, "shopifyql_total_sales");
+  assert.equal(JSON.stringify(summary).toLowerCase().includes("access denied"), false);
+});
+
+test("floor KPI loads do not request the team view", () => {
+  assert.equal(kpiRequestPath("Inventory Manager"), "/api/kpis");
+  assert.equal(kpiRequestPath("Customer Experience Specialist"), "/api/kpis");
+  assert.equal(kpiRequestPath("Growth & Marketing"), "/api/kpis");
+  assert.equal(kpiRequestPath("Logistics Manager"), "/api/kpis");
+  assert.equal(kpiRequestPath("Customer Experience Manager"), "/api/kpis");
+  assert.equal(kpiRequestPath("Operations Manager"), "/api/kpis?team=1");
+  assert.equal(kpiRequestPath("Owner"), "/api/kpis?team=1");
+  const denied = buildKpiPayload({
+    role: "Inventory Manager",
+    email: "sam@tcmstaff.com",
+    name: "Sam",
+    searchParams: new URLSearchParams("team=1"),
+    snapshot: { people: [], staffMemberError: "Access denied for staffMember field" },
+    map: { entries: [] },
+    targets: null,
+  });
+  assert.equal(denied.status, 403);
+  assert.equal(JSON.stringify(denied).toLowerCase().includes("access denied"), false);
+});
+
+test("UI sources do not interpolate Shopify access errors", () => {
+  const read = (rel) => readFileSync(new URL(rel, import.meta.url), "utf8");
+  const kpi = read("../lib/kpiViews.js");
+  const publisher = read("../lib/publisherReportView.js");
+  const sync = read("../lib/shopifySync.js");
+  const automations = read("../lib/appViews2.js");
+  assert.equal(kpi.includes("staffMemberError"), false);
+  assert.equal(kpi.includes("attribution.error"), false);
+  assert.equal(publisher.includes("publisherReportError"), false);
+  assert.equal(publisher.includes("Last error"), false);
+  assert.equal(sync.includes("staffMember {"), false);
+  assert.equal(sync.includes("Shopify said:"), false);
+  assert.equal(automations.includes("r.staffError"), false);
+  assert.equal(automations.includes("staffKpiError:\"FAILED"), false);
+  assert.equal(automations.includes("unknown error"), false);
 });
 
 test("bootstrap drops per-person modules for a floor role", () => {
