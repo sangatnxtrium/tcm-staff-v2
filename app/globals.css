@@ -378,3 +378,38 @@ td.empty,th.empty{background:transparent;border:0;border-bottom:1px solid var(--
   .kpi-team-scroll{display:none}
   .kpi-team-cards{display:block}
 }
+.bonus-page{min-width:0;max-width:100%}
+.bonus-dream{margin:0 0 12px;font-size:18px;line-height:1.35;font-weight:700;letter-spacing:-.02em}
+.bonus-rules{margin:0;padding-left:20px;line-height:1.45}
+.bonus-rules > li{margin:0 0 12px}
+.bonus-cats,.bonus-mult{list-style:none;margin:8px 0 0;padding:0}
+.bonus-cats li,.bonus-mult li{padding:8px 0;border-top:1px solid var(--border);font-size:13px;line-height:1.4}
+.score-row{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--border);font-size:13.5px}
+.bonus-settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.bonus-page h4{margin:14px 0 6px;font-size:13px}
+.bonus-banner{background:#1a1a1a;color:#f6f1e6;border:1px solid #d4af3744;border-radius:14px;padding:14px 16px;margin:0 0 14px}
+.bonus-kicker{margin:0 0 4px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#d4af37;font-weight:700}
+.bonus-banner strong{color:#fff;font-size:15px;line-height:1.35}
+.bonus-rules{margin:0;padding-left:18px;line-height:1.5}
+.bonus-rules li{margin:0 0 8px}
+.bonus-example{margin:12px 0 6px;font-size:14px;line-height:1.45}
+.bonus-note{margin:0;font-size:12.5px;color:var(--muted);line-height:1.45}
+.bonus-track{height:10px;background:#efe8da;border-radius:999px;overflow:hidden;margin:8px 0 14px}
+.bonus-fill{height:100%;background:linear-gradient(90deg,#8a1f1f,#d4af37)}
+.bonus-meta{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--muted)}
+.bonus-grid .value{font-size:22px}
+.bonus-gates{display:grid;gap:8px}
+.bonus-gate{display:flex;justify-content:space-between;gap:12px;align-items:baseline;border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:#fff}
+.bonus-gate b{font-size:13px}
+.bonus-gate span{font-size:12.5px;color:var(--muted);text-align:right}
+.bonus-gate.met span{color:var(--green);font-weight:700}
+.bonus-gate.wait span{color:var(--amber);font-weight:700}
+@media (max-width:420px){
+  .bonus-gate{flex-direction:column;align-items:flex-start;gap:2px}
+  .bonus-gate span{text-align:left}
+  .bonus-grid,.bonus-settings-grid{grid-template-columns:1fr}
+  .bonus-meta,.score-row{flex-direction:column;align-items:flex-start;gap:2px}
+}
+@media (hover:none){
+  .chat-channel-actions,.chat-msg-actions{opacity:1}
+}
