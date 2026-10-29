@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { ROLES } from "../lib/rbac.js";
 import { goalMeterHtml, goalMeterState, isHomeMeterView } from "../lib/goalMeter.js";
+import { defaultPoolCap, goalsForDate, parseQuarterGoals } from "../lib/staffKpis.js";
+import { buildTeamBonus, teamBonusHtml } from "../lib/teamBonus.js";
 
 const oct29 = new Date("2026-10-29T18:00:00Z");
 
@@ -23,7 +25,8 @@ test("the meter fills toward the quarterly goal, then the pool cap", () => {
   });
   assert.equal(hit.phase, "pool");
   assert.equal(hit.estimate, 0);
-  assert.equal(hit.line, "Goal hit! Pool est. $0.00 of $3,705");
+  assert.equal(hit.cap, defaultPoolCap(180000));
+  assert.equal(hit.line, "Goal hit! Pool est. $0.00 of $" + defaultPoolCap(180000).toLocaleString("en-US"));
 
   const pool = goalMeterState({
     now: oct29,
@@ -65,6 +68,46 @@ test("the meter shows store totals only", () => {
   }, { size: "compact", now: oct29 });
   assert.equal(compact.includes("goal-meter-compact"), true);
   assert.equal(compact.includes("goal-meter-hero"), false);
+});
+
+test("Q1 uses a $225,000 goal and a $3,269 cap; later quarters stay at $255,000", () => {
+  assert.equal(defaultPoolCap(225000), 3269);
+  assert.equal(defaultPoolCap(255000), 3705);
+  const jan = new Date("2027-01-15T19:00:00Z");
+  const oct = new Date("2026-10-29T18:00:00Z");
+  const q1 = goalsForDate({ quarterlyNet: 255000, monthlyNet: 85000 }, jan);
+  assert.equal(q1.quarter, 1);
+  assert.equal(q1.quarterlyNet, 225000);
+  assert.equal(q1.monthlyNet, 75000);
+  assert.equal(q1.cap, 3269);
+  const q4 = goalsForDate({ quarterlyNet: 255000 }, oct);
+  assert.equal(q4.quarterlyNet, 255000);
+  assert.equal(q4.monthlyNet, 85000);
+  assert.equal(q4.cap, 3705);
+  const meter = goalMeterState({
+    now: jan,
+    targets: { quarterlyNet: 255000 },
+    summary: { store: { quarter: { net: 325000 } } },
+  });
+  assert.equal(meter.phase, "pool");
+  assert.equal(meter.goal, 225000);
+  assert.equal(meter.cap, 3269);
+  assert.equal(meter.estimate, 3269);
+  assert.equal(meter.line, "Goal hit! Pool est. $3,269.00 of $3,269");
+  const saved = parseQuarterGoals({ quarters: q1.quarters.map((row) => row.quarter === 1 ? { ...row, net: 210000, cap: 3000 } : row) });
+  assert.equal(saved.ok, true);
+  assert.equal(goalsForDate(saved.settings, jan).quarterlyNet, 210000);
+  assert.equal(goalsForDate(saved.settings, jan).cap, 3000);
+  assert.equal(parseQuarterGoals({ quarters: [{ quarter: 1, net: -1, cap: 1 }] }).ok, false);
+  const html = teamBonusHtml(buildTeamBonus({
+    now: jan,
+    targets: { quarterlyNet: 255000 },
+    summary: { store: { quarter: { net: 1 } } },
+  }), { owner: true });
+  assert.equal(html.includes("$225,000 net sales"), true);
+  assert.equal(html.includes("Cap $3,269."), true);
+  assert.equal(html.includes("Q1 net sales goal"), true);
+  assert.equal(html.includes("value=\"3269\""), true);
 });
 
 test("every role has a home screen for the compact meter", () => {
