@@ -6,7 +6,7 @@
           "dev": "next dev",
           "build": "next build",
           "start": "next start",
-          "test": "node --test tests/staffKpis.test.mjs tests/teamBonus.test.mjs"
+          "test": "node --test tests/staffKpis.test.mjs tests/teamBonus.test.mjs tests/goalMeter.test.mjs"
     },
     "dependencies": {
           "next": "14.2.5",
