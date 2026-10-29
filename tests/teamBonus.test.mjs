@@ -14,6 +14,7 @@ import {
   parseBonusSettings,
   poolFromSplit,
   fulfillmentPoints,
+  intakeForBuyer,
   multiplierForPoints,
   pointsForDelta,
   poolRuleText,
@@ -125,24 +126,26 @@ test("score bands, the 32-point multiplier, and a private scorecard", () => {
   assert.equal(fulfillmentPoints({ shipBusinessDays: 1, refundPctOfSales: 1 }), 3);
   assert.equal(fulfillmentPoints({ shipBusinessDays: 2, refundPctOfSales: 0.2 }), 3);
   assert.equal(fulfillmentPoints({ shipBusinessDays: 5, refundPctOfSales: 0.2 }), 0);
-  assert.equal(multiplierForPoints(32), 120);
-  assert.equal(multiplierForPoints(29), 120);
-  assert.equal(multiplierForPoints(28), 100);
-  assert.equal(multiplierForPoints(23), 100);
-  assert.equal(multiplierForPoints(16), 75);
-  assert.equal(multiplierForPoints(10), 50);
-  assert.equal(multiplierForPoints(9), 0);
+  assert.equal(multiplierForPoints(36), 120);
+  assert.equal(multiplierForPoints(33), 120);
+  assert.equal(multiplierForPoints(32), 100);
+  assert.equal(multiplierForPoints(26), 100);
+  assert.equal(multiplierForPoints(25), 75);
+  assert.equal(multiplierForPoints(18), 75);
+  assert.equal(multiplierForPoints(17), 50);
+  assert.equal(multiplierForPoints(11), 50);
+  assert.equal(multiplierForPoints(10), 0);
   assert.equal(bonusShare({ hours: 10, multiplierPct: 120, teamWeight: 30, pool: 2250 }), 900);
   const store = {
     quarters: {
       "2026-Q4": {
-        "sam@tcmstaff.com": { attendance: 4, customerService: 4, accuracy: 4, storeStandards: 4, teamwork: 4, aovVsStore: 3, salesPerHour: 3, fulfillmentRefunds: 3 },
+        "sam@tcmstaff.com": { attendance: 4, customerService: 4, accuracy: 4, storeStandards: 4, teamwork: 4, aovVsStore: 3, salesPerHour: 3, fulfillmentRefunds: 3, intakeBuying: 4 },
         "alex@tcmstaff.com": { attendance: 0, customerService: 1, accuracy: 1, storeStandards: 1, teamwork: 1, aovVsStore: 0, salesPerHour: 0, fulfillmentRefunds: 0, note: "Alex made $99999" },
       },
     },
   };
   const own = presentOwnScore(viewerScorecard(store, "Sam@tcmstaff.com", "2026-Q4"), null);
-  assert.equal(own.total, 29);
+  assert.equal(own.total, 33);
   assert.equal(own.multiplierPct, 120);
   const hidden = JSON.stringify(own);
   assert.equal(hidden.includes("alex"), false);
@@ -156,15 +159,81 @@ test("score bands, the 32-point multiplier, and a private scorecard", () => {
   }), { owner: false, ownScore: own });
   assert.equal(html.includes("Teamwork makes the dream work. When the store wins, we all win."), true);
   assert.equal(html.includes("$255,000 net sales"), true);
-  assert.equal(html.includes("8 areas, 0–4 each, 32 points"), true);
+  assert.equal(html.includes("9 areas, 0–4 each, 36 points"), true);
   assert.equal(html.includes("Fulfillment &amp; refunds"), true);
-  assert.equal(html.includes("29–32 points = 120%"), true);
-  assert.equal(html.includes("Under 10 points = 0%"), true);
+  assert.equal(html.includes("Intake &amp; buying"), true);
+  assert.equal(html.includes("Speed and buy quality are measured"), true);
+  assert.equal(html.includes("Clean buys"), true);
+  assert.equal(html.includes("33–36 points = 120%"), true);
+  assert.equal(html.includes("Under 11 points = 0%"), true);
   assert.equal(html.includes("Jan 1, 2027"), true);
   assert.equal(html.includes("$30,000 over goal"), true);
   assert.equal(html.includes("alex"), false);
   assert.equal(html.includes("99999"), false);
-  assert.equal(html.includes("29 / 32"), true);
+  assert.equal(html.includes("33 / 36"), true);
+});
+
+test("intake speed and margin are measured, and another buyer's lot stays out", () => {
+  const now = new Date("2026-10-29T18:00:00Z");
+  const purchased = "2026-10-01T18:00:00Z";
+  const lots = [
+    {
+      id: 1,
+      purchasePrice: 60,
+      itemCount: 1,
+      soldCountTotal: 1,
+      soldRevenueTotal: 100,
+      firstSoldAt: "2026-10-20T18:00:00Z",
+      closer: "Alex Rivera",
+      stageHistory: [
+        { stage: "Purchased", enteredAt: purchased, byUser: "sam@tcmstaff.com" },
+        { stage: "Processing", enteredAt: "2026-10-02T18:00:00Z", byUser: "sam@tcmstaff.com" },
+        { stage: "Listed", enteredAt: "2026-10-03T18:00:00Z", byUser: "sam@tcmstaff.com" },
+      ],
+    },
+    {
+      id: 2,
+      title: "Alex secret lot",
+      purchasePrice: 99999,
+      closer: "Alex Rivera",
+      soldRevenueTotal: 1,
+      stageHistory: [
+        { stage: "Purchased", enteredAt: purchased, byUser: "alex@tcmstaff.com" },
+      ],
+    },
+  ];
+  const result = intakeForBuyer(lots, { email: "sam@tcmstaff.com", name: "Sam" }, null, now);
+  assert.equal(result.speed, 4);
+  assert.equal(result.margin, 4);
+  assert.equal(result.speedDecided, 1);
+  assert.equal(result.marginDecided, 1);
+  const slow = intakeForBuyer([{
+    purchasePrice: 60,
+    itemCount: 1,
+    soldCountTotal: 1,
+    soldRevenueTotal: 100,
+    firstSoldAt: "2026-10-20T18:00:00Z",
+    stageHistory: [
+      { stage: "Purchased", enteredAt: "2026-10-01T18:00:00Z", byUser: "sam@tcmstaff.com" },
+      { stage: "Processing", enteredAt: "2026-10-02T18:00:00Z", byUser: "sam@tcmstaff.com" },
+      { stage: "Listed", enteredAt: "2026-10-06T18:00:00Z", byUser: "sam@tcmstaff.com" },
+    ],
+  }], { email: "sam@tcmstaff.com" }, null, now);
+  assert.equal(slow.speed, 0);
+  const thin = intakeForBuyer([{
+    purchasePrice: 80,
+    itemCount: 1,
+    soldCountTotal: 1,
+    soldRevenueTotal: 100,
+    firstSoldAt: "2026-10-20T18:00:00Z",
+    stageHistory: [{ stage: "Purchased", enteredAt: purchased, byUser: "sam@tcmstaff.com" }],
+  }], { email: "sam@tcmstaff.com" }, null, now);
+  assert.equal(thin.margin, 0);
+  const html = teamBonusHtml(buildTeamBonus({ now, targets: { quarterlyNet: 255000 }, summary: { store: { quarter: { net: 1 } } } }), { intake: result });
+  assert.equal(html.includes("Alex secret lot"), false);
+  assert.equal(html.includes("99999"), false);
+  assert.equal(html.includes("Speed, measured"), true);
+  assert.equal(html.includes("Owner-scored"), true);
 });
 
 test("every role can open Team Bonus and only an Owner can save the commission", () => {
